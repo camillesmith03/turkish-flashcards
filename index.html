@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Türkçe Öğren">
+<title>Türkçe Öğren</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: linear-gradient(135deg, #E30A17 0%, #c0392b 100%); min-height: 100vh; color: white; }
+  .screen { display: none; min-height: 100vh; padding: 40px 24px; max-width: 480px; margin: 0 auto; }
+  .screen.active { display: flex; flex-direction: column; }
+  button { cursor: pointer; border: none; font-family: inherit; }
+  input, textarea { font-family: inherit; border: none; outline: none; }
+
+/* Menu */
+.menu-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
+.menu-title h1 { font-size: 32px; font-weight: 700; }
+.menu-title p { font-size: 14px; opacity: 0.7; margin-top: 4px; }
+.icon-btn { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; }
+.header-icons { display: flex; gap: 12px; }
+.cefr-filter { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 20px; scrollbar-width: none; }
+.cefr-filter::-webkit-scrollbar { display: none; }
+.cefr-btn { padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; white-space: nowrap; background: rgba(255,255,255,0.2); color: white; transition: all 0.2s; }
+.cefr-btn.active { background: white; color: #c0392b; }
+.deck-list { display: flex; flex-direction: column; gap: 12px; }
+.deck-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; padding: 16px 20px; text-align: left; color: white; transition: all 0.2s; }
+.deck-btn:hover { background: rgba(255,255,255,0.25); }
+.deck-btn-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.deck-name { font-size: 18px; font-weight: 600; }
+.due-badge { background: white; color: #c0392b; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+.deck-progress-row { display: flex; align-items: center; gap: 12px; }
+.deck-progress-bar { flex: 1; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; overflow: hidden; }
+.deck-progress-fill { height: 100%; background: #4ade80; border-radius: 3px; transition: width 0.3s; }
+.deck-progress-text { font-size: 12px; opacity: 0.6; }
+.custom-btn { background: white; color: #c0392b; border-radius: 20px; padding: 16px 20px; text-align: left; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 12px; }
+
+/* Status messages */
+.status-box { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 24px; text-align: center; }
+.status-box p { opacity: 0.8; margin-bottom: 16px; font-size: 15px; }
+.status-box .title { font-size: 17px; font-weight: 600; opacity: 1; margin-bottom: 8px; }
+.error-box { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 20px; text-align: center; }
+.error-text { color: #fde68a; margin-bottom: 12px; font-size: 14px; }
+.spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Study */
+.study-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.study-header button { background: none; color: rgba(255,255,255,0.6); font-size: 14px; }
+.study-deck-name { font-weight: 600; font-size: 16px; }
+.study-due { font-size: 13px; opacity: 0.6; }
+.progress-row { display: flex; justify-content: space-between; font-size: 13px; opacity: 0.7; margin-bottom: 6px; }
+.progress-bar { height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; overflow: hidden; margin-bottom: 24px; }
+.progress-fill { height: 100%; background: white; border-radius: 4px; transition: width 0.3s; }
+.card-container { perspective: 1000px; margin-bottom: 24px; flex: 1; display: flex; align-items: center; }
+.card { width: 100%; height: 280px; position: relative; transform-style: preserve-3d; transition: transform 0.5s; cursor: pointer; }
+.card.flipped { transform: rotateX(180deg); }
+.card-face { position: absolute; inset: 0; border-radius: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.card-front { background: white; color: #1f2937; }
+.card-back { background: #c0392b; color: white; transform: rotateX(180deg); }
+.card-label { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; opacity: 0.5; margin-bottom: 16px; }
+.card-word { font-size: 36px; font-weight: 700; text-align: center; margin-bottom: 8px; }
+.card-badges { display: flex; gap: 8px; margin-bottom: 16px; }
+.badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+.badge-cefr { background: #fee2e2; color: #c0392b; }
+.badge-status-mastered { background: #dcfce7; color: #16a34a; }
+.badge-status-learning { background: #fef9c3; color: #ca8a04; }
+.badge-status-new { background: #f1f5f9; color: #64748b; }
+.card-hint { font-size: 13px; opacity: 0.4; margin-top: 16px; }
+.card-english { font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 8px; }
+.card-pronunciation { font-size: 16px; opacity: 0.8; text-align: center; }
+.answer-btns { display: flex; gap: 16px; justify-content: center; margin-bottom: 16px; }
+.missed-btn { flex: 1; max-width: 160px; padding: 16px; border-radius: 30px; background: rgba(255,255,255,0.2); color: white; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.gotit-btn { flex: 1; max-width: 160px; padding: 16px; border-radius: 30px; background: white; color: #c0392b; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.nav-row { display: flex; align-items: center; justify-content: center; gap: 24px; }
+.nav-btn { width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,0.2); color: white; font-size: 22px; display: flex; align-items: center; justify-content: center; }
+.nav-btn:disabled { opacity: 0.3; }
+.flip-btn { padding: 12px 32px; border-radius: 30px; background: white; color: #c0392b; font-size: 17px; font-weight: 700; }
+.saving-text { font-size: 12px; opacity: 0.5; text-align: center; height: 18px; }
+
+/* Complete */
+.complete-screen { align-items: center; justify-content: center; text-align: center; }
+.complete-emoji { font-size: 64px; margin-bottom: 16px; }
+.complete-screen h2 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+.complete-screen p { opacity: 0.7; margin-bottom: 32px; font-size: 16px; }
+.complete-btns { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+.btn-primary { padding: 14px 28px; border-radius: 30px; background: white; color: #c0392b; font-size: 16px; font-weight: 700; }
+.btn-secondary { padding: 14px 28px; border-radius: 30px; background: rgba(255,255,255,0.2); color: white; font-size: 16px; font-weight: 700; }
+
+/* Stats */
+.back-btn { background: none; color: rgba(255,255,255,0.7); font-size: 14px; margin-bottom: 24px; text-align: left; text-decoration: underline; }
+.stats-title { font-size: 30px; font-weight: 700; margin-bottom: 24px; }
+.stat-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 20px; margin-bottom: 16px; }
+.stat-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.stat-level { font-size: 22px; font-weight: 700; }
+.stat-count { font-size: 13px; opacity: 0.6; }
+.stat-bar { height: 10px; background: rgba(255,255,255,0.2); border-radius: 5px; overflow: hidden; display: flex; margin-bottom: 8px; }
+.stat-bar-mastered { height: 100%; background: #4ade80; }
+.stat-bar-learning { height: 100%; background: #facc15; }
+.stat-legend { display: flex; gap: 16px; font-size: 12px; opacity: 0.7; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+.total-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 20px; }
+.total-card p:first-child { font-weight: 600; margin-bottom: 4px; }
+.total-card p:last-child { opacity: 0.6; font-size: 14px; }
+
+/* Settings */
+.settings-title { font-size: 30px; font-weight: 700; margin-bottom: 8px; }
+.settings-desc { opacity: 0.7; font-size: 14px; margin-bottom: 24px; }
+.settings-input { width: 100%; padding: 14px 16px; border-radius: 16px; background: white; color: #1f2937; font-size: 14px; margin-bottom: 12px; }
+.settings-save-btn { width: 100%; padding: 16px; border-radius: 20px; background: white; color: #c0392b; font-size: 18px; font-weight: 700; margin-bottom: 12px; }
+.settings-refresh-btn { width: 100%; padding: 14px; border-radius: 20px; border: 2px solid rgba(255,255,255,0.4); color: white; font-size: 16px; font-weight: 600; background: none; }
+.settings-error { color: #fde68a; font-size: 13px; margin-top: 12px; }
+.settings-mode { font-size: 12px; opacity: 0.5; margin-top: 8px; text-align: center; }
+
+/* Builder */
+.builder-title { font-size: 28px; font-weight: 700; margin-bottom: 24px; }
+.tab-row { display: flex; background: rgba(255,255,255,0.2); padding: 3px; border-radius: 30px; margin-bottom: 20px; }
+.tab-btn { flex: 1; padding: 10px; border-radius: 28px; font-size: 14px; font-weight: 600; color: white; background: none; transition: all 0.2s; }
+.tab-btn.active { background: white; color: #c0392b; }
+.builder-input { width: 100%; padding: 14px 16px; border-radius: 16px; background: white; color: #1f2937; font-size: 15px; margin-bottom: 16px; }
+.pair-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.pair-input { flex: 1; padding: 12px 14px; border-radius: 14px; background: white; color: #1f2937; font-size: 14px; }
+.remove-btn { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.2); color: white; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.add-pair-btn { width: 100%; padding: 14px; border-radius: 20px; border: 2px solid rgba(255,255,255,0.4); color: white; font-size: 16px; font-weight: 600; background: none; margin-bottom: 16px; }
+.start-btn { width: 100%; padding: 16px; border-radius: 20px; background: white; color: #c0392b; font-size: 18px; font-weight: 700; }
+.start-btn:disabled { opacity: 0.4; }
+.bulk-hint { font-size: 13px; opacity: 0.8; margin-bottom: 10px; }
+.bulk-example { background: rgba(255,255,255,0.1); border-radius: 14px; padding: 14px; font-family: monospace; font-size: 13px; margin-bottom: 12px; line-height: 1.8; }
+.bulk-textarea { width: 100%; padding: 14px; border-radius: 16px; background: white; color: #1f2937; font-size: 14px; height: 180px; resize: none; margin-bottom: 8px; }
+.bulk-error { color: #fde68a; font-size: 13px; margin-bottom: 12px; }
+.import-btn { width: 100%; padding: 16px; border-radius: 20px; background: white; color: #c0392b; font-size: 18px; font-weight: 700; }
+
+.fade { opacity: 0; transition: opacity 0.15s; }
+</style>
+
+</head>
+<body>
+
+<!-- MENU -->
+
+<div id="screen-menu" class="screen active">
+  <div class="menu-header">
+    <div class="menu-title">
+      <div style="font-size:36px;margin-bottom:4px;">🇹🇷</div>
+      <h1>Türkçe Öğren</h1>
+      <p>Learn Turkish with flashcards</p>
+    </div>
+    <div class="header-icons">
+      <button class="icon-btn" onclick="showStats()">📊</button>
+      <button class="icon-btn" onclick="showSettings()">⚙️</button>
+    </div>
+  </div>
+  <div id="menu-content"></div>
+</div>
+
+<!-- STUDY -->
+
+<div id="screen-study" class="screen">
+  <div class="study-header">
+    <button onclick="showMenu()">← Menu</button>
+    <span class="study-deck-name" id="study-deck-name"></span>
+    <span class="study-due" id="study-due"></span>
+  </div>
+  <div class="progress-row">
+    <span id="study-counter"></span>
+    <span id="saving-indicator" class="saving-text"></span>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="study-progress-fill"></div></div>
+  <div class="card-container">
+    <div class="card" id="study-card" onclick="flipCard()">
+      <div class="card-face card-front" id="card-front"></div>
+      <div class="card-face card-back" id="card-back"></div>
+    </div>
+  </div>
+  <div id="answer-btns" class="answer-btns" style="display:none;">
+    <button class="missed-btn" onclick="handleAnswer(false)">✗ Missed</button>
+    <button class="gotit-btn" onclick="handleAnswer(true)">✓ Got it</button>
+  </div>
+  <div id="nav-row" class="nav-row">
+    <button class="nav-btn" id="prev-btn" onclick="navigate(-1)">‹</button>
+    <button class="flip-btn" onclick="flipCard()">Flip</button>
+    <button class="nav-btn" id="next-btn" onclick="navigate(1)">›</button>
+  </div>
+</div>
+
+<!-- COMPLETE -->
+
+<div id="screen-complete" class="screen complete-screen">
+  <div class="complete-emoji">🎉</div>
+  <h2>Deck complete!</h2>
+  <p id="complete-msg"></p>
+  <div class="complete-btns">
+    <button class="btn-primary" onclick="restartDeck()">Study again</button>
+    <button class="btn-secondary" onclick="showMenu()">Back to menu</button>
+  </div>
+</div>
+
+<!-- STATS -->
+
+<div id="screen-stats" class="screen">
+  <button class="back-btn" onclick="showMenu()">← Back</button>
+  <div class="stats-title">Your Progress</div>
+  <div id="stats-content"></div>
+</div>
+
+<!-- SETTINGS -->
+
+<div id="screen-settings" class="screen">
+  <button class="back-btn" onclick="showMenu()">← Back</button>
+  <div class="settings-title">Settings</div>
+  <div class="settings-desc">Paste your Google Apps Script URL for full sync, or a published CSV URL for read-only mode.</div>
+  <input class="settings-input" id="settings-url-input" placeholder="https://script.google.com/macros/s/.../exec" />
+  <button class="settings-save-btn" onclick="saveSettings()">Save & Connect</button>
+  <button class="settings-refresh-btn" onclick="refreshData()">↻ Refresh data</button>
+  <div id="settings-error" class="settings-error"></div>
+  <div id="settings-mode" class="settings-mode"></div>
+</div>
+
+<!-- BUILDER -->
+
+<div id="screen-builder" class="screen">
+  <button class="back-btn" onclick="showMenu()">← Back</button>
+  <div class="builder-title">Build your deck</div>
+  <input class="builder-input" id="builder-name" placeholder="Deck name (e.g. Advanced Verbs)" />
+  <div class="tab-row">
+    <button class="tab-btn active" id="tab-manual" onclick="switchTab('manual')">✏️ Manual</button>
+    <button class="tab-btn" id="tab-bulk" onclick="switchTab('bulk')">📋 Bulk paste</button>
+  </div>
+  <div id="builder-manual">
+    <div id="pairs-container"></div>
+    <button class="add-pair-btn" onclick="addPair()">+ Add card</button>
+    <button class="start-btn" id="start-custom-btn" onclick="startCustomDeck()">Start studying →</button>
+  </div>
+  <div id="builder-bulk" style="display:none;">
+    <p class="bulk-hint">One pair per line using dash, tab, or comma:</p>
+    <div class="bulk-example">koşmak - to run<br>yazmak - to write<br>okumak - to read</div>
+    <textarea class="bulk-textarea" id="bulk-text" placeholder="koşmak - to run&#10;yazmak - to write"></textarea>
+    <div id="bulk-error" class="bulk-error"></div>
+    <button class="import-btn" onclick="importBulk()">Import cards →</button>
+  </div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────
+let scriptUrl = localStorage.getItem('gas_url') || '';
+let vocab = [];
+let progress = {};
+let decks = [];
+let activeQueue = [];
+let activeDeckName = '';
+let currentIndex = 0;
+let isFlipped = false;
+let filterCefr = 'All';
+let pairs = [{ front: '', back: '' }];
+const CEFR = ['A1','A2','B1','B2','C1','C2'];
+
+// ── Screen management ─────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+function showMenu() { renderMenu(); showScreen('menu'); }
+function showStats() { renderStats(); showScreen('stats'); }
+function showSettings() {
+  document.getElementById('settings-url-input').value = scriptUrl;
+  updateSettingsMode();
+  showScreen('settings');
+}
+
+// ── URL helpers ───────────────────────────────────────────────────────
+function isCsvUrl(url) { return url.includes('/pub?') || url.includes('output=csv'); }
+function isScriptUrl(url) { return url.includes('/exec'); }
+
+function updateSettingsMode() {
+  const el = document.getElementById('settings-mode');
+  if (!scriptUrl) { el.textContent = ''; return; }
+  el.textContent = isCsvUrl(scriptUrl) ? 'Mode: Read-only CSV' : 'Mode: Full sync (Apps Script)';
+}
+
+// ── Data loading ──────────────────────────────────────────────────────
+async function loadData(url) {
+  if (!url) return;
+  try {
+    if (isCsvUrl(url)) {
+      const res = await fetch(url);
+      const text = await res.text();
+      vocab = parseCsv(text);
+      progress = {};
+    } else {
+      const [vRes, pRes] = await Promise.all([
+        fetch(url + '?action=getVocab'),
+        fetch(url + '?action=getProgress')
+      ]);
+      vocab = await vRes.json();
+      const pData = await pRes.json();
+      progress = {};
+      (pData || []).forEach(r => { progress[r.card_id] = r; });
+    }
+    decks = [...new Set(vocab.map(v => v.deck).filter(Boolean))];
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+function parseCsv(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''));
+  return lines.slice(1).filter(l => l.trim()).map(line => {
+    const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g,''));
+    const obj = {};
+    headers.forEach((h,i) => obj[h] = cols[i] || '');
+    return obj;
+  });
+}
+
+// ── Progress saving ───────────────────────────────────────────────────
+async function saveProgress(cardId, gotIt) {
+  const prev = progress[cardId] || { got_it_count:0, missed_count:0, review_count:0 };
+  const g = (prev.got_it_count||0) + (gotIt?1:0);
+  const m = (prev.missed_count||0) + (gotIt?0:1);
+  const t = g + m;
+  const status = t===0 ? 'new' : (g/t >= 0.85 && g >= 5 ? 'mastered' : 'learning');
+  const updated = {
+    card_id: cardId, status,
+    got_it_count: g, missed_count: m,
+    review_count: (prev.review_count||0)+1,
+    last_reviewed: new Date().toISOString().split('T')[0]
+  };
+  progress[cardId] = updated;
+  if (scriptUrl && isScriptUrl(scriptUrl)) {
+    try {
+      await fetch(scriptUrl, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain'},
+        body: JSON.stringify({action:'saveProgress', data:updated})
+      });
+    } catch(e) {}
+  }
+}
+
+// ── Spaced repetition ─────────────────────────────────────────────────
+function nextInterval(g, m) {
+  const t = g + m;
+  if (!t) return 0;
+  const r = g/t;
+  if (r >= 0.9 && g >= 5) return 21;
+  if (r >= 0.8 && g >= 3) return 7;
+  if (r >= 0.6) return 3;
+  return 1;
+}
+function isDue(card) {
+  const p = progress[card.turkish] || {};
+  if (!p.last_reviewed) return true;
+  const days = (Date.now() - new Date(p.last_reviewed)) / 86400000;
+  return days >= nextInterval(p.got_it_count||0, p.missed_count||0);
+}
+
+// ── Menu rendering ────────────────────────────────────────────────────
+function renderMenu() {
+  const el = document.getElementById('menu-content');
+  if (!scriptUrl) {
+    el.innerHTML = `<div class="status-box"><p class="title">Connect your Google Sheet</p><p>Tap ⚙️ above to paste your Apps Script URL and load your vocabulary.</p><button class="btn-primary" style="margin-top:8px;" onclick="showSettings()">Open Settings</button></div>`;
+    return;
+  }
+  if (!vocab.length) {
+    el.innerHTML = `<div class="status-box"><div class="spinner"></div><p>Loading your vocabulary...</p></div>`;
+    loadData(scriptUrl).then(ok => {
+      if (ok) renderMenu();
+      else el.innerHTML = `<div class="error-box"><p class="error-text">Could not load data. Check your URL.</p><button class="btn-primary" onclick="refreshData()">Retry</button></div>`;
+    });
+    return;
+  }
+
+  // CEFR filter
+  let html = `<div class="cefr-filter">`;
+  ['All',...CEFR].forEach(l => {
+    const hasCards = l === 'All' || vocab.some(v => v.cefr === l);
+    if (hasCards) html += `<button class="cefr-btn ${filterCefr===l?'active':''}" onclick="setCefr('${l}')">${l}</button>`;
+  });
+  html += `</div><div class="deck-list">`;
+
+  decks.forEach(deck => {
+    const cards = vocab.filter(v => v.deck===deck && (filterCefr==='All'||v.cefr===filterCefr));
+    if (!cards.length) return;
+    const mastered = cards.filter(c => (progress[c.turkish]||{}).status==='mastered').length;
+    const due = cards.filter(c => isDue(c)).length;
+    const pct = Math.round((mastered/cards.length)*100);
+    html += `<button class="deck-btn" onclick="startDeck('${deck.replace(/'/g,"\\'")}')">
+      <div class="deck-btn-top">
+        <span class="deck-name">${deck}</span>
+        ${due>0?`<span class="due-badge">${due} due</span>`:''}
+      </div>
+      <div class="deck-progress-row">
+        <div class="deck-progress-bar"><div class="deck-progress-fill" style="width:${pct}%"></div></div>
+        <span class="deck-progress-text">${mastered}/${cards.length}</span>
+      </div>
+    </button>`;
+  });
+
+  html += `<button class="custom-btn" onclick="showBuilder()">✏️ Build my own deck</button></div>`;
+  el.innerHTML = html;
+}
+
+function setCefr(level) { filterCefr = level; renderMenu(); }
+
+// ── Start deck ────────────────────────────────────────────────────────
+function startDeck(deckName) {
+  let cards = vocab.filter(v => v.deck===deckName && (filterCefr==='All'||v.cefr===filterCefr));
+  const withP = cards.map(c => ({...c,...(progress[c.turkish]||{})}));
+  const due = withP.filter(isDue).sort((a,b)=>(a.got_it_count||0)-(b.got_it_count||0));
+  const notDue = withP.filter(c=>!isDue(c));
+  activeQueue = [...due,...notDue];
+  activeDeckName = deckName;
+  if (!activeQueue.length) { alert('No cards for this filter.'); return; }
+  currentIndex = 0; isFlipped = false;
+  renderStudy();
+  showScreen('study');
+}
+
+// ── Study screen ──────────────────────────────────────────────────────
+function renderStudy() {
+  const card = activeQueue[currentIndex];
+  const p = progress[card.turkish] || {};
+  const total = activeQueue.length;
+  const pct = ((currentIndex+1)/total)*100;
+  const due = activeQueue.filter(isDue).length;
+
+  document.getElementById('study-deck-name').textContent = activeDeckName;
+  document.getElementById('study-due').textContent = due + ' due';
+  document.getElementById('study-counter').textContent = (currentIndex+1) + ' / ' + total;
+  document.getElementById('study-progress-fill').style.width = pct + '%';
+
+  // Front
+  let statusBadge = '';
+  if (p.status) {
+    statusBadge = `<span class="badge badge-status-${p.status}">${p.status}</span>`;
+  }
+  document.getElementById('card-front').innerHTML = `
+    <div class="card-badges">
+      ${card.cefr?`<span class="badge badge-cefr">${card.cefr}</span>`:''}
+      ${statusBadge}
+    </div>
+    <div class="card-word">${card.turkish}</div>
+    <div class="card-hint">Tap to reveal</div>`;
+
+  // Back
+  document.getElementById('card-back').innerHTML = `
+    <div class="card-label">English</div>
+    <div class="card-english">${card.english}</div>
+    ${card.pronunciation?`<div class="card-pronunciation">${card.pronunciation}</div>`:''}`;
+
+  // Reset flip
+  const cardEl = document.getElementById('study-card');
+  cardEl.classList.remove('flipped');
+  isFlipped = false;
+  document.getElementById('answer-btns').style.display = 'none';
+  document.getElementById('nav-row').style.display = 'flex';
+  document.getElementById('prev-btn').disabled = currentIndex === 0;
+  document.getElementById('next-btn').disabled = currentIndex === total-1;
+}
+
+function flipCard() {
+  isFlipped = !isFlipped;
+  document.getElementById('study-card').classList.toggle('flipped', isFlipped);
+  document.getElementById('answer-btns').style.display = isFlipped ? 'flex' : 'none';
+  document.getElementById('nav-row').style.display = isFlipped ? 'none' : 'flex';
+}
+
+function navigate(dir) {
+  const next = currentIndex + dir;
+  if (next < 0 || next >= activeQueue.length) return;
+  currentIndex = next;
+  renderStudy();
+}
+
+async function handleAnswer(gotIt) {
+  const card = activeQueue[currentIndex];
+  document.getElementById('saving-indicator').textContent = 'Saving...';
+  await saveProgress(card.turkish, gotIt);
+  document.getElementById('saving-indicator').textContent = '';
+  if (currentIndex < activeQueue.length - 1) {
+    currentIndex++;
+    renderStudy();
+  } else {
+    document.getElementById('complete-msg').textContent = activeQueue.length + ' cards reviewed';
+    showScreen('complete');
+  }
+}
+
+function restartDeck() { startDeck(activeDeckName); }
+
+// ── Stats ─────────────────────────────────────────────────────────────
+function renderStats() {
+  const el = document.getElementById('stats-content');
+  const levels = CEFR.filter(l => vocab.some(v => v.cefr === l));
+  if (!levels.length) { el.innerHTML = '<p style="opacity:0.7">No data yet — start studying to see progress.</p>'; return; }
+  let html = '';
+  levels.forEach(level => {
+    const cards = vocab.filter(v => v.cefr===level);
+    const total = cards.length;
+    const mastered = cards.filter(c=>(progress[c.turkish]||{}).status==='mastered').length;
+    const learning = cards.filter(c=>(progress[c.turkish]||{}).status==='learning').length;
+    const newC = total - mastered - learning;
+    html += `<div class="stat-card">
+      <div class="stat-card-header">
+        <span class="stat-level">${level}</span>
+        <span class="stat-count">${mastered}/${total} mastered</span>
+      </div>
+      <div class="stat-bar">
+        <div class="stat-bar-mastered" style="width:${(mastered/total)*100}%"></div>
+        <div class="stat-bar-learning" style="width:${(learning/total)*100}%"></div>
+      </div>
+      <div class="stat-legend">
+        <span><span class="legend-dot" style="background:#4ade80"></span>Mastered: ${mastered}</span>
+        <span><span class="legend-dot" style="background:#facc15"></span>Learning: ${learning}</span>
+        <span><span class="legend-dot" style="background:rgba(255,255,255,0.3)"></span>New: ${newC}</span>
+      </div>
+    </div>`;
+  });
+  html += `<div class="total-card"><p>Total vocabulary</p><p>${vocab.length} cards across ${decks.length} decks</p></div>`;
+  el.innerHTML = html;
+}
+
+// ── Settings ──────────────────────────────────────────────────────────
+function saveSettings() {
+  const url = document.getElementById('settings-url-input').value.trim();
+  scriptUrl = url;
+  localStorage.setItem('gas_url', url);
+  vocab = []; progress = {}; decks = [];
+  updateSettingsMode();
+  showMenu();
+}
+
+async function refreshData() {
+  vocab = []; progress = {}; decks = [];
+  const ok = await loadData(scriptUrl);
+  document.getElementById('settings-error').textContent = ok ? '' : 'Could not load data. Check your URL.';
+  if (ok) showMenu();
+}
+
+// ── Builder ───────────────────────────────────────────────────────────
+function showBuilder() {
+  pairs = [{ front:'', back:'' }];
+  renderPairs();
+  switchTab('manual');
+  showScreen('builder');
+}
+
+function switchTab(tab) {
+  document.getElementById('builder-manual').style.display = tab==='manual' ? 'block' : 'none';
+  document.getElementById('builder-bulk').style.display = tab==='bulk' ? 'block' : 'none';
+  document.getElementById('tab-manual').classList.toggle('active', tab==='manual');
+  document.getElementById('tab-bulk').classList.toggle('active', tab==='bulk');
+}
+
+function renderPairs() {
+  const el = document.getElementById('pairs-container');
+  el.innerHTML = pairs.map((p,i) => `
+    <div class="pair-row">
+      <input class="pair-input" placeholder="Turkish" value="${p.front}" oninput="pairs[${i}].front=this.value">
+      <input class="pair-input" placeholder="English" value="${p.back}" oninput="pairs[${i}].back=this.value">
+      <button class="remove-btn" onclick="removePair(${i})">×</button>
+    </div>`).join('');
+}
+
+function addPair() { pairs.push({front:'',back:''}); renderPairs(); }
+function removePair(i) { if (pairs.length > 1) { pairs.splice(i,1); renderPairs(); } }
+
+function startCustomDeck() {
+  const valid = pairs.filter(p => p.front.trim() && p.back.trim());
+  if (!valid.length) return;
+  const name = document.getElementById('builder-name').value.trim() || 'My Custom Deck';
+  activeQueue = valid.map(p => ({ turkish:p.front, english:p.back, pronunciation:'', cefr:'', deck:name }));
+  activeDeckName = name;
+  currentIndex = 0; isFlipped = false;
+  renderStudy();
+  showScreen('study');
+}
+
+function importBulk() {
+  const text = document.getElementById('bulk-text').value;
+  const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+  const parsed = []; const bad = [];
+  lines.forEach((line,i) => {
+    let sep = line.includes(' - ')?' - ':line.includes('\t')?'\t':line.includes(',')? ',':null;
+    if (!sep) { bad.push(i+1); return; }
+    const idx = line.indexOf(sep);
+    const front = line.slice(0,idx).trim();
+    const back = line.slice(idx+sep.length).trim();
+    if (front && back) parsed.push({front,back});
+    else bad.push(i+1);
+  });
+  if (bad.length) { document.getElementById('bulk-error').textContent = 'Could not parse line(s): '+bad.join(', ')+'. Use "Turkish - English" format.'; return; }
+  if (!parsed.length) { document.getElementById('bulk-error').textContent = 'No valid pairs found.'; return; }
+  pairs = parsed;
+  renderPairs();
+  switchTab('manual');
+}
+
+// ── Keyboard shortcuts ────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  const active = document.querySelector('.screen.active').id;
+  if (active !== 'screen-study') return;
+  if (e.key==='ArrowLeft') navigate(-1);
+  if (e.key==='ArrowRight') navigate(1);
+  if (e.key==='ArrowUp'||e.key==='ArrowDown') { e.preventDefault(); flipCard(); }
+});
+
+// ── Init ──────────────────────────────────────────────────────────────
+// Note: Apps Script URL is never stored in this file.
+// Enter it via the Settings screen (⚙️) on first launch.
+if (scriptUrl) {
+  loadData(scriptUrl).then(() => renderMenu());
+} else {
+  renderMenu();
+}
+</script>
+
+</body>
+</html>
